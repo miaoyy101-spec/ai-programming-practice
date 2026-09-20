@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>复利计算器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root{
+    --accent:#2563eb;
+    --accent-soft:#eff4ff;
+    --ink:#111827;
+    --sub:#6b7280;
+    --line:#e5e7eb;
+    --bg:#f4f5f7;
+    --card:#ffffff;
+    --green:#059669;
+    --amber:#d97706;
+    --radius:14px;
+  }
+  html,body{ height:100%; }
+  body{
+    font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--ink);
+    height:100dvh; overflow:hidden;
+    display:flex; flex-direction:column;
+    padding:16px 20px; gap:12px;
+  }
+
+  /* ===== 顶部标题与公式 ===== */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-shrink:0;
+  }
+  header h1{ font-size:20px; font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:10px;}
+  header h1::before{ content:""; width:6px; height:22px; border-radius:3px; background:var(--accent); }
+  .formula{
+    font-family:ui-monospace,Consolas,"SF Mono",monospace;
+    font-size:13px; color:var(--sub); background:var(--card);
+    border:1px solid var(--line); border-radius:10px;
+    padding:6px 14px; white-space:nowrap;
+  }
+  .formula b{ color:var(--accent); font-weight:700; }
+
+  /* ===== 主体三栏 ===== */
+  main{
+    flex:1; min-height:0;
+    display:grid; grid-template-columns: 1.05fr 1.25fr 0.95fr; gap:14px;
+  }
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; display:flex; flex-direction:column; min-height:0;
+  }
+  .card-title{ font-size:13px; font-weight:700; color:var(--sub); margin-bottom:10px; letter-spacing:1px; }
+
+  /* ===== 输入字段 ===== */
+  .field{
+    border:1.5px solid var(--line); border-radius:12px;
+    padding:9px 12px; margin-bottom:9px; cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:#fff; user-select:none;
+  }
+  .field.active{ border-color:var(--accent); background:var(--accent-soft); }
+  .field .row{ display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+  .field label{ font-size:12.5px; color:var(--sub); display:flex; align-items:center; gap:6px; white-space:nowrap;}
+  .field .sym{
+    font-family:ui-monospace,Consolas,monospace; font-style:italic;
+    color:var(--accent); font-size:11px; border:1px solid var(--line);
+    border-radius:5px; padding:0 5px; background:#fafafa;
+  }
+  .field .val{
+    font-family:ui-monospace,Consolas,monospace; font-size:19px; font-weight:600;
+    text-align:right; flex:1; overflow:hidden; white-space:nowrap;
+  }
+  .field .val.empty{ color:#c3c7ce; font-weight:400;}
+  .field .unit{ font-size:12px; color:var(--sub); width:30px; text-align:right; flex-shrink:0;}
+
+  .opt-row{ display:flex; gap:8px; margin-top:auto; padding-top:4px;}
+  .period-name{
+    flex:1; display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--sub);
+    border:1.5px solid var(--line); border-radius:10px; padding:0 10px;
+  }
+  .period-name select{
+    flex:1; border:0; outline:0; font-size:12.5px; font-family:inherit;
+    color:var(--ink); padding:7px 0; background:transparent; cursor:pointer;
+  }
+  .hint{ font-size:11px; color:#9ca3af; margin-top:8px; line-height:1.5;}
+  .conv{ font-family:ui-monospace,Consolas,monospace; font-size:12px; color:var(--accent); margin-top:8px;}
+
+  /* ===== 结果区 ===== */
+  .result-hero{ text-align:center; padding:6px 0 12px; border-bottom:1px dashed var(--line);}
+  .result-hero .cap{ font-size:12.5px; color:var(--sub); }
+  .result-hero .big{
+    font-size:38px; font-weight:700; color:var(--accent);
+    font-family:ui-monospace,Consolas,monospace; line-height:1.25;
+    word-break:break-all;
+  }
+  .result-hero .mult{ font-size:12px; color:var(--green); margin-top:2px;}
+
+  .stat{ display:flex; justify-content:space-between; align-items:baseline; padding:9px 2px; font-size:13.5px;}
+  .stat + .stat{ border-top:1px solid #f0f1f3;}
+  .stat .k{ color:var(--sub);}
+  .stat .v{ font-family:ui-monospace,Consolas,monospace; font-weight:600;}
+  .stat .v.interest{ color:var(--green);}
+
+  .bar{
+    height:14px; border-radius:7px; overflow:hidden;
+    display:flex; align-items:stretch; margin:10px 0 6px;
+    background:#f0f1f3; flex-shrink:0;
+  }
+  .bar i{ display:block; align-self:stretch;}
+  .bar .b1{ background:var(--accent);}
+  .bar .b3{ background:var(--green);}
+  .legend{ display:flex; gap:14px; font-size:11px; color:var(--sub); margin-bottom:10px;}
+  .legend span{ display:flex; align-items:center; gap:4px;}
+  .legend i{ width:9px; height:9px; border-radius:2px; display:inline-block;}
+
+  .subst{
+    margin-top:auto; background:#f9fafb; border:1px solid var(--line); border-radius:10px;
+    padding:9px 12px; font-family:ui-monospace,Consolas,monospace; font-size:11.5px;
+    color:#374151; line-height:1.7; word-break:break-all;
+  }
+  .subst .tag{ color:var(--accent); font-weight:700;}
+
+  /* ===== 键盘 ===== */
+  .keypad{
+    flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+    align-content:stretch;
+  }
+  .key{
+    border:1px solid var(--line); background:#fff; border-radius:12px;
+    font-size:21px; font-weight:600; color:var(--ink); cursor:pointer;
+    font-family:ui-monospace,Consolas,monospace;
+    transition:transform .05s, background .12s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .key:hover{ background:#f3f6fc; }
+  .key:active{ transform:scale(.94); }
+  .key.fn{ font-size:16px; font-family:inherit; color:var(--sub); background:#f9fafb;}
+  .key.danger:hover{ background:#fef2f2; }
+  .key.next{ background:var(--accent); color:#fff; border-color:var(--accent); font-size:15px; font-family:inherit;}
+  .key.next:hover{ background:#1d4ed8; }
+
+  /* 很矮或很窄的窗口：允许滚动，保证任何内容都可到达 */
+  @media (max-height:600px), (max-width:920px){
+    html,body{ height:auto; overflow:visible; }
+    body{ min-height:100dvh; }
+    main{ grid-template-columns:1fr; }
+    .keypad{ max-width:420px; margin:0 auto; }
+  }
+
+  @media (max-height:760px){
+    body{ padding:10px 16px; gap:8px;}
+    header h1{ font-size:17px;}
+    .card{ padding:12px 14px;}
+    .field{ padding:6px 10px; margin-bottom:7px;}
+    .field .val{ font-size:16px;}
+    .result-hero{ padding:2px 0 8px;}
+    .result-hero .big{ font-size:30px;}
+    .stat{ padding:6px 2px; font-size:12.5px;}
+    .key{ font-size:18px; border-radius:10px;}
+    .card-title{ margin-bottom:7px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>复利计算器</h1>
+  <div class="formula">通用复利公式：<b>A = P × (1 + i)<sup>n</sup></b>　|　n＝天数÷365，i＝年利率</div>
+</header>
+
+<main>
+  <!-- ========== 输入 ========== -->
+  <section class="card">
+    <div class="card-title">输入参数（点击字段，再用键盘输入）</div>
+
+    <div class="field active" data-target="P">
+      <div class="row">
+        <label>本金 <span class="sym">P</span></label>
+        <span class="val empty" id="dispP">0.00</span>
+        <span class="unit">元</span>
+      </div>
+    </div>
+
+    <div class="field" data-target="i">
+      <div class="row">
+        <label>年利率 <span class="sym">i</span></label>
+        <span class="val empty" id="dispi">0.00</span>
+        <span class="unit">%</span>
+      </div>
+    </div>
+
+    <div class="field" data-target="n">
+      <div class="row">
+        <label>时间长度 <span class="sym">t</span></label>
+        <span class="val empty" id="dispn">0</span>
+        <span class="unit" id="nUnit">月</span>
+      </div>
+    </div>
+
+    <div class="opt-row">
+      <label class="period-name">时间单位＝
+        <select id="periodUnit">
+          <option value="日">日</option>
+          <option value="周">周</option>
+          <option value="旬">旬（10天）</option>
+          <option value="月" selected>月</option>
+          <option value="季">季</option>
+          <option value="半年">半年</option>
+          <option value="年">年</option>
+        </select>
+      </label>
+    </div>
+    <div class="conv" id="convInfo">换算：0 天</div>
+    <div class="hint">时间长度可任意单位输入（支持小数），后台统一换算为天数（1 年 ＝ 365 天）后计算；利率为年利率。</div>
+  </section>
+
+  <!-- ========== 结果 ========== -->
+  <section class="card">
+    <div class="card-title">计算结果</div>
+    <div class="result-hero">
+      <div class="cap">期末本息总额 A</div>
+      <div class="big" id="rA">0.00</div>
+      <div class="mult" id="rMult">—</div>
+    </div>
+
+    <div class="stat"><span class="k">累计投入本金 P</span><span class="v" id="rP">0.00</span></div>
+    <div class="stat"><span class="k">累计利息</span><span class="v interest" id="rI">0.00</span></div>
+
+    <div class="bar">
+      <i class="b1" id="barP" style="width:0%"></i>
+      <i class="b3" id="barI" style="width:0%"></i>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--accent)"></i>本金</span>
+      <span><i style="background:var(--green)"></i>利息</span>
+    </div>
+
+    <div class="subst" id="subst">
+      <span class="tag">代入公式</span><br>A = 0 × (1 + 0)^0 = 0.00
+    </div>
+  </section>
+
+  <!-- ========== 键盘 ========== -->
+  <section class="card">
+    <div class="card-title">数字键盘</div>
+    <div class="keypad" id="keypad">
+      <button class="key" data-k="7">7</button>
+      <button class="key" data-k="8">8</button>
+      <button class="key" data-k="9">9</button>
+      <button class="key" data-k="4">4</button>
+      <button class="key" data-k="5">5</button>
+      <button class="key" data-k="6">6</button>
+      <button class="key" data-k="1">1</button>
+      <button class="key" data-k="2">2</button>
+      <button class="key" data-k="3">3</button>
+      <button class="key fn" data-k="00">00</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key fn" data-k="000">000</button>
+      <button class="key fn" data-k=".">.</button>
+      <button class="key fn danger" data-k="back" title="退格">←</button>
+      <button class="key fn danger" data-k="clear" title="清空当前项">C</button>
+      <button class="key next" data-k="next" style="grid-column:1 / -1;">下一项</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  /* 原始输入字符串；t（时间长度）允许小数 */
+  var raw = { P:"", i:"", n:"" };
+  var LIMIT = { P:{max:12, dot:2}, i:{max:7, dot:4}, n:{max:6, dot:2} };
+  var ORDER = ["P","i","n"];
+  var active = "P";
+
+  /* 各时间单位折算天数（统一口径：1 年 ＝ 365 天） */
+  var UNIT_DAYS = { "日":1, "周":7, "旬":10, "月":365/12, "季":365/4, "半年":365/2, "年":365 };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var fmt = function(x){
+    if(!isFinite(x)) return "—";
+    return x.toLocaleString("zh-CN",{minimumFractionDigits:2, maximumFractionDigits:2});
+  };
+
+  /* ---------- 键盘输入处理 ---------- */
+  function press(k){
+    if(k === "next"){
+      var idx = (ORDER.indexOf(active) + 1) % ORDER.length;
+      selectField(ORDER[idx]);
+      return;
+    }
+    if(k === "clear"){ raw[active] = ""; render(); return; }
+    if(k === "back"){ raw[active] = raw[active].slice(0,-1); render(); return; }
+
+    var s = raw[active], lim = LIMIT[active];
+
+    if(k === "."){
+      if(lim.dot === 0) return;                 // 期数不允许小数
+      if(s.indexOf(".") !== -1 || s === "") return;
+      raw[active] = s + "."; render(); return;
+    }
+    if(k === "00" || k === "000"){
+      if(s === "" || s === "0") return;         // 避免前导一堆0
+    }
+    if(s === "0" && /[0-9]/.test(k)){ raw[active] = k; render(); return; } // 0开头直接替换
+
+    if(s.replace(".","").length >= lim.max) return;
+
+    var dotPos = s.indexOf(".");
+    if(dotPos !== -1 && s.length - dotPos - 1 >= lim.dot) return; // 限制小数位
+
+    raw[active] = s + k;
+    render();
+  }
+
+  /* ---------- 取数值 ---------- */
+  function num(key){
+    var v = parseFloat(raw[key]);
+    return isNaN(v) ? 0 : v;
+  }
+
+  /* ---------- 核心复利计算 ----------
+     后台统一以天数计算：
+       days  = t × 单位折算天数          （1年=365天）
+       n     = days ÷ 365               （折算为年）
+       A     = P × (1+i)^n              （i 为年利率，小数）
+  */
+  function compute(){
+    var P = num("P"), ip = num("i"), t = num("n");
+    var unit = $("periodUnit").value;
+    var days = t * UNIT_DAYS[unit];
+    var n = days / 365;
+    var i = ip / 100;
+    var factor = Math.pow(1 + i, n);
+    var A = P * factor;
+    var interest = A - P;
+    return {P:P, ip:ip, i:i, t:t, unit:unit, days:days, n:n, A:A, interest:interest, factor:factor};
+  }
+
+  /* ---------- 渲染 ---------- */
+  function render(){
+    // 输入显示
+    $("dispP").textContent  = raw.P === "" ? "0.00" : raw.P;
+    $("dispi").textContent  = raw.i === "" ? "0.00" : raw.i;
+    $("dispn").textContent  = raw.n === "" ? "0" : raw.n;
+    ["P","i","n"].forEach(function(k){
+      var d = $("disp"+k);
+      d.classList.toggle("empty", raw[k] === "");
+    });
+
+    $("nUnit").textContent = $("periodUnit").value;
+
+    var r = compute();
+
+    // 天数换算提示（后台统一以天计算）
+    var daysTxt = r.days.toLocaleString("zh-CN",{maximumFractionDigits:2});
+    $("convInfo").textContent = "换算：" + (raw.n === "" ? "0" : raw.n) + " " + r.unit + " ＝ " + daysTxt + " 天 ＝ " + r.n.toFixed(4) + " 年";
+
+    $("rA").textContent = fmt(r.A);
+    $("rP").textContent = fmt(r.P);
+    $("rI").textContent = fmt(r.interest);
+
+    if(r.P > 0){
+      $("rMult").textContent = "资产膨胀至本金的 " + (r.A / r.P).toLocaleString("zh-CN",{maximumFractionDigits:3}) + " 倍";
+    }else{
+      $("rMult").textContent = "—";
+    }
+
+    // 构成条
+    var total = r.A > 0 ? r.A : 0;
+    if(total > 0){
+      $("barP").style.width = (r.P / total * 100).toFixed(2) + "%";
+      $("barI").style.width = (Math.max(r.interest,0) / total * 100).toFixed(2) + "%";
+    }else{
+      $("barP").style.width = "0%";
+      $("barI").style.width = "0%";
+    }
+
+    // 公式代入
+    var s = '<span class="tag">代入公式</span><br>';
+    s += "换算：" + daysTxt + " 天 ÷ 365 ＝ " + r.n.toFixed(4) + " 年<br>";
+    s += "A = " + fmt(r.P) + " × (1 + " + r.i.toFixed(4) + ")^" + r.n.toFixed(4);
+    s += "<br>= <b>" + fmt(r.A) + "</b> 元";
+    $("subst").innerHTML = s;
+  }
+
+  /* ---------- 字段选择 ---------- */
+  function selectField(key){
+    active = key;
+    var fields = document.querySelectorAll(".field");
+    fields.forEach(function(f){ f.classList.toggle("active", f.dataset.target === key); });
+  }
+  document.querySelectorAll(".field").forEach(function(f){
+    f.addEventListener("click", function(){ selectField(f.dataset.target); });
+  });
+
+  /* ---------- 键盘绑定（鼠标 + 物理键盘） ---------- */
+  document.querySelectorAll(".key").forEach(function(btn){
+    btn.addEventListener("click", function(){ press(btn.dataset.k); });
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+    if(/^[0-9]$/.test(e.key)) press(e.key);
+    else if(e.key === ".") press(".");
+    else if(e.key === "Backspace"){ press("back"); e.preventDefault(); }
+    else if(e.key === "Escape" || e.key.toLowerCase() === "c") press("clear");
+    else if(e.key === "Tab"){ press("next"); e.preventDefault(); }
+  });
+
+  /* ---------- 期时间单位 ---------- */
+  $("periodUnit").addEventListener("change", render);
+
+  /* ---------- 预置示例，便于打开即见完整效果 ---------- */
+  raw.P = "10000"; raw.i = "5"; raw.n = "12";
+  render();
+})();
+</script>
+</body>
+</html>
