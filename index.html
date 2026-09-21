@@ -261,7 +261,8 @@
       <button class="key fn" data-k=".">.</button>
       <button class="key fn danger" data-k="back" title="退格">←</button>
       <button class="key fn danger" data-k="clear" title="清空当前项">C</button>
-      <button class="key next" data-k="next" style="grid-column:1 / -1;">下一项</button>
+      <button class="key fn" data-k="sign" title="切换正负号">±</button>
+      <button class="key next" data-k="next" style="grid-column:2 / -1;">下一项</button>
     </div>
   </section>
 </main>
@@ -294,6 +295,14 @@
     }
     if(k === "clear"){ raw[active] = ""; render(); return; }
     if(k === "back"){ raw[active] = raw[active].slice(0,-1); render(); return; }
+    if(k === "sign"){
+      /* 允许用户自由输入负号（切换正负），让拦截逻辑真正发挥作用 */
+      var s = raw[active];
+      if(s === "" || s === "0" || s === "0.") return;
+      raw[active] = s.charAt(0) === "-" ? s.substring(1) : "-" + s;
+      render();
+      return;
+    }
 
     var s = raw[active], lim = LIMIT[active];
 
@@ -352,6 +361,27 @@
     });
 
     $("nUnit").textContent = $("periodUnit").value;
+
+    /* ---------- 负值拦截 ----------
+       允许用户自由输入负号，但提交计算时检测到负值就拦截：
+       不显示结果，给出明确提示，要求重新输入。
+       这才是真正的"拦截"——能输入，但被阻止生效。 */
+    var blocked = [];
+    if(num("P") < 0) blocked.push("本金不能为负");
+    if(num("i") < 0) blocked.push("年利率不能为负");
+    if(num("n") < 0) blocked.push("时间长度不能为负");
+    if(blocked.length > 0){
+      var msg = blocked.join("；");
+      $("convInfo").textContent = "⚠ 已拦截：" + msg;
+      $("rA").textContent = "—";
+      $("rP").textContent = "—";
+      $("rI").textContent = "—";
+      $("rMult").textContent = "已拦截";
+      $("barP").style.width = "0%";
+      $("barI").style.width = "0%";
+      $("subst").innerHTML = '<span class="tag" style="background:#dc2626;color:#fff;">已拦截</span><br>' + msg + "，请重新输入非负值。";
+      return;
+    }
 
     var r = compute();
 
